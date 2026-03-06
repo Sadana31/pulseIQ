@@ -25,20 +25,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
   // FETCH USER NAME (Logic preserved)
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (!user) return;
-
-      try {
-        const snapshot = await getDocs(
-          query(collection(db, "patients"), where("email", "==", user.email)),
-        );
-
-        if (!snapshot.empty) {
-          const data = snapshot.docs[0].data();
-          setUserName(data.name);
-        }
-      } catch (error) {
-        console.error("Error fetching user:", error);
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setUserName(user.displayName || "Doctor");
       }
     });
 
@@ -93,10 +82,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             </div>
             <div className="flex flex-col">
               <h2 className="text-xl font-bold tracking-tighter text-slate-800 uppercase">
-                CaseGuard
+                PulseIQ
               </h2>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: THEME_COLOR }}>
-                Risk Management
+                Web Portal
               </p>
             </div>
           </div>

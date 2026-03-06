@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { classifyMessage } from "./triageEngine";
+import { db, auth } from "../../firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 
 const INITIAL_MESSAGES = [
   {
@@ -15,6 +18,8 @@ export default function PatientDashboard() {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+
+  const user = auth.currentUser;  
 
   const [triageState, setTriageState] = useState({});
   const [triageResult, setTriageResult] = useState(null);
@@ -33,7 +38,82 @@ export default function PatientDashboard() {
   }, [messages, isTyping]);
 
 
+  const [vitals, setVitals] = useState({
+  bp: "",
+  pulse: "",
+  spo2: "",
+  temp: ""
+});
 
+  async function savePatient(triageData) {
+
+  const user = auth.currentUser;
+  if (!user) return;
+
+  try {
+
+    const docRef = await addDoc(collection(db, "patients"), {
+
+      patientName: user.displayName,
+
+      primaryIssue: triageData.primaryIssue,
+
+      symptoms: triageData.symptoms,
+
+      category: triageData.category,
+
+      priority: triageData.priority,
+
+      queueLevel: triageData.queueLevel,
+
+      differential: triageData.differential,
+
+      createdAt: serverTimestamp()
+
+    });
+
+    setTriageResult({
+      ...triageData,
+      patientId: docRef.id
+    });
+
+    console.log("Patient saved");
+
+  } catch (error) {
+
+    console.error("Error saving patient:", error);
+
+  }
+
+}
+
+async function updateVitals() {
+
+  if (!triageResult?.patientId) return;
+
+  try {
+
+    const patientRef = doc(db, "patients", triageResult.patientId);
+
+
+await updateDoc(patientRef, {
+  vitals: {
+    bp: vitals.bp,
+    pulse: vitals.pulse,
+    spo2: vitals.spo2,
+    temp: vitals.temp
+  }
+});
+
+    console.log("Vitals updated successfully");
+
+  } catch (error) {
+
+    console.error("Error updating vitals:", error);
+
+  }
+
+}
   function sendMessage() {
 
     const text = input.trim();
@@ -65,7 +145,11 @@ export default function PatientDashboard() {
       if (result.state) setTriageState(result.state);
 
       if (result.triageSummary) {
+
         setTriageResult(result.triageSummary);
+
+        savePatient(result.triageSummary);
+
       }
 
       if (result.navigate) {
@@ -75,6 +159,7 @@ export default function PatientDashboard() {
     }, 1200);
   }
 
+  
 
 
   return (
@@ -244,8 +329,49 @@ export default function PatientDashboard() {
                   )}
 
                 </div>
+<div className="mt-6 bg-white border rounded-3xl p-6">
 
+<h3 className="font-black text-lg mb-4">Enter Vital Signs</h3>
 
+<div className="grid grid-cols-2 gap-4">
+
+<input
+className="border p-3 rounded-xl"
+placeholder="Blood Pressure"
+value={vitals.bp}
+onChange={(e)=>setVitals({...vitals, bp:e.target.value})}
+/>
+
+<input
+className="border p-3 rounded-xl"
+placeholder="Pulse"
+value={vitals.pulse}
+onChange={(e)=>setVitals({...vitals, pulse:e.target.value})}
+/>
+
+<input
+className="border p-3 rounded-xl"
+placeholder="SpO₂"
+value={vitals.spo2}
+onChange={(e)=>setVitals({...vitals, spo2:e.target.value})}
+/>
+
+<input
+className="border p-3 rounded-xl"
+placeholder="Temperature"
+value={vitals.temp}
+onChange={(e)=>setVitals({...vitals, temp:e.target.value})}
+/>
+
+<button
+onClick={updateVitals}
+className="mt-6 w-full py-4 bg-[#9173e6] text-white rounded-2xl font-black uppercase tracking-widest text-sm shadow-lg hover:scale-105 transition"
+>
+Update Vitals
+</button>
+
+</div>
+</div>
 
               </div>
 
@@ -253,9 +379,6 @@ export default function PatientDashboard() {
 
           </div>
 
-
-
-          {/* INPUT AREA */}
 
           <div className="border-t border-slate-50 p-8 bg-white shrink-0">
 

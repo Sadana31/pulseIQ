@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   HeartPulse, 
   Activity, 
@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   ChevronDown
 } from "lucide-react";
+import { db } from "../../firebase";
+import { collection, getDocs } from "firebase/firestore";
 
 const PATIENTS = [
   {
@@ -65,17 +67,52 @@ const PATIENTS = [
 ];
 
 export default function CaseViewPage() {
-  const [activePatient, setActivePatient] = useState(PATIENTS[0]);
+  const [activePatient, setActivePatient] = useState(null);
   const THEME_COLOR = "#9173e6";
 
   const priorityStyles = {
-    Critical: "bg-[#7247d7] text-white shadow-[#7247d7]/20",
-    Urgent: "bg-[#9173e6] text-white shadow-[#9173e6]/20",
-    Routine: "bg-slate-100 text-slate-500",
-  };
+  High: "bg-[#7247d7] text-white shadow-[#7247d7]/20",
+  Medium: "bg-[#9173e6] text-white shadow-[#9173e6]/20",
+  Low: "bg-slate-100 text-slate-500",
+};
+
+  const [patients, setPatients] = useState([]);
+
+
+useEffect(() => {
+
+  async function fetchPatients() {
+
+    const snapshot = await getDocs(collection(db, "patients"));
+
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    setPatients(data);
+
+    if (data.length > 0) {
+      setActivePatient(data[0]);
+    }
+
+  }
+
+  fetchPatients();
+
+
+}, []);
+
+if (!activePatient) {
+  return (
+    <div className="min-h-screen flex items-center justify-center text-slate-400">
+      Loading patients...
+    </div>
+  );
+}
 
   return (
-    <div className="min-h-screen bg-[#f8f7ff] p-6 lg:p-10 font-sans space-y-8">
+    <div className="min-h-screen bg-[#f8f7ff] px-20 font-sans space-y-8">
       
       {/* HEADER */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -111,25 +148,25 @@ export default function CaseViewPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {PATIENTS.map((p) => (
+              {(patients || []).map((p) => (
                 <tr 
                   key={p.id} 
                   onClick={() => setActivePatient(p)}
-                  className={`cursor-pointer transition-all duration-300 ${activePatient.id === p.id ? 'bg-[#f8f7ff]' : 'hover:bg-slate-50'}`}
+                  className={`cursor-pointer transition-all duration-300 ${activePatient?.id === p.id ? 'bg-[#f8f7ff]' : 'hover:bg-slate-50'}`}
                 >
                   <td className="px-8 py-5">
-                    <div className={`font-black tracking-tight transition-colors ${activePatient.id === p.id ? 'text-[#9173e6] text-lg' : 'text-slate-800'}`}>{p.name}</div>
+                    <div className={`font-black tracking-tight transition-colors ${activePatient?.id === p.id ? 'text-[#9173e6] text-lg' : 'text-slate-800'}`}>{p.patientName}</div>
                     <div className="text-[10px] text-slate-400 font-bold uppercase">{p.id}</div>
                   </td>
-                  <td className="px-8 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">{p.type}</td>
-                  <td className="px-8 py-5 text-xs font-bold text-slate-500">{p.time}</td>
+                  <td className="px-8 py-5 text-xs font-bold text-slate-500 uppercase tracking-widest">{p.category}</td>
+                  <td className="px-8 py-5 text-xs font-bold text-slate-500">{p.createdAt?.toDate().toLocaleTimeString()}</td>
                   <td className="px-8 py-5">
                     <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg ${priorityStyles[p.priority]}`}>
                       {p.priority}
                     </span>
                   </td>
                   <td className="px-8 py-5 text-right">
-                    {activePatient.id === p.id ? (
+                    {activePatient?.id === p.id ? (
                       <div className="inline-flex p-2 bg-[#9173e6] text-white rounded-full shadow-lg shadow-[#9173e6]/30">
                         <ChevronDown size={18} />
                       </div>
@@ -155,9 +192,9 @@ export default function CaseViewPage() {
             <div className="flex justify-between items-start mb-10">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] mb-3" style={{ color: THEME_COLOR }}>Selected Case Profile</p>
-                <h2 className="text-6xl font-black text-slate-900 tracking-tighter mb-2">{activePatient.name}</h2>
+                <h2 className="text-6xl font-black text-slate-900 tracking-tighter mb-2">{activePatient.patientName}</h2>
                 <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">
-                  {activePatient.age}Y • {activePatient.sex} • <span className="text-slate-900 font-black italic">Active Session</span>
+                  {activePatient.patientAge}Y • {activePatient.patientGender} • <span className="text-slate-900 font-black italic">Active Session</span>
                 </p>
               </div>
               <div className="h-16 w-16 rounded-2xl bg-slate-900 text-white shadow-xl flex items-center justify-center">
@@ -166,37 +203,18 @@ export default function CaseViewPage() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-              <StatCard icon={<Activity size={20}/>} label="BP" value={activePatient.vitals.bp} color={THEME_COLOR} />
-              <StatCard icon={<HeartPulse size={20}/>} label="Pulse" value={activePatient.vitals.pulse} color={THEME_COLOR} />
-              <StatCard icon={<ShieldAlert size={20}/>} label="SpO2" value={activePatient.vitals.spo2} color={THEME_COLOR} isWarning={parseInt(activePatient.vitals.spo2) < 92} />
-              <StatCard icon={<Pill size={20}/>} label="Temp" value={activePatient.vitals.temp} color={THEME_COLOR} />
-            </div>
-
+            <StatCard icon={<Activity size={20}/>} label="BP" value={activePatient.vitals?.bp || "N/A"} color={THEME_COLOR} />
+<StatCard icon={<HeartPulse size={20}/>} label="Pulse" value={activePatient.vitals?.pulse || "N/A"} color={THEME_COLOR} />
+<StatCard icon={<ShieldAlert size={20}/>} label="SpO2" value={activePatient.vitals?.spo2 || "N/A"} color={THEME_COLOR} isWarning={parseInt(activePatient.vitals?.spo2) < 92} />
+<StatCard icon={<Pill size={20}/>} label="Temp" value={activePatient.vitals?.temp || "N/A"} color={THEME_COLOR} />
+</div>
             <div className="p-8 rounded-[2.5rem] bg-[#f8f7ff] border border-slate-50 italic font-bold text-slate-700 leading-relaxed text-xl">
-              "{activePatient.complaint}"
+              "{activePatient.primaryIssue}"
             </div>
           </article>
 
           {/* PATIENT HISTORY & DOCUMENTS */}
-          <article className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm grid md:grid-cols-2 gap-10">
-            <div>
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-300 mb-6">Medical History</h3>
-              <div className="flex flex-wrap gap-2">
-                {activePatient.history.map(h => (
-                  <span key={h} className="px-5 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-black text-slate-600 shadow-sm transition-all hover:border-[#9173e6] cursor-default">
-                    {h}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="md:border-l md:border-slate-50 md:pl-10">
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-300 mb-6">Clinical Documents</h3>
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between group hover:bg-white transition-all cursor-pointer">
-                <span className="text-xs font-bold text-slate-700 italic">EHR_Summary_{activePatient.id}.pdf</span>
-                <FileText size={18} className="text-slate-300 group-hover:text-[#9173e6]" />
-              </div>
-            </div>
-          </article>
+          
         </div>
 
         {/* AI INTEL & ACTIONS */}
@@ -209,7 +227,7 @@ export default function CaseViewPage() {
                 <h2 className="text-3xl font-black italic tracking-tight">AI Differential</h2>
               </div>
               <ul className="space-y-4">
-                {activePatient.differential.map((diff, i) => (
+                {(activePatient.differential || []).map((diff, i) => (
                   <li key={i} className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${diff.active ? 'bg-white/10 border-white/20' : 'bg-transparent border-white/5 opacity-40'}`}>
                     <span className="font-bold text-slate-200">{diff.name}</span>
                     <span className={`px-3 py-1 rounded-lg text-[10px] font-black text-white ${diff.active ? 'bg-[#9173e6]' : 'bg-transparent border border-white/10'}`}>

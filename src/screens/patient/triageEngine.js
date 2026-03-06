@@ -47,6 +47,45 @@ const symptomCategoryMap = {
   "overeating": { category: "General Medicine", priority: "Low" }
 };
 
+const differentialMap = {
+
+  Cardiology: [
+    { name: "Acute Coronary Syndrome", conf: "HIGH" },
+    { name: "Angina", conf: "MOD" }
+  ],
+
+  Respiratory: [
+    { name: "Pneumonia", conf: "HIGH" },
+    { name: "Bronchitis", conf: "MOD" }
+  ],
+
+  Gastroenterology: [
+    { name: "Gastritis", conf: "HIGH" },
+    { name: "Food Poisoning", conf: "MOD" }
+  ],
+
+  Neurology: [
+    { name: "Migraine", conf: "HIGH" },
+    { name: "Tension Headache", conf: "MOD" }
+  ],
+
+  ENT: [
+    { name: "Pharyngitis", conf: "HIGH" },
+    { name: "Viral Infection", conf: "MOD" }
+  ],
+
+  Ophthalmology: [
+    { name: "Refractive Error", conf: "MOD" },
+    { name: "Conjunctivitis", conf: "LOW" }
+  ],
+
+  Dermatology: [
+    { name: "Allergic Dermatitis", conf: "HIGH" },
+    { name: "Skin Irritation", conf: "LOW" }
+  ]
+
+};
+
 
 // ===============================
 // DOCTOR SPECIALTY MAP
@@ -252,6 +291,10 @@ function buildTriageSummary(state) {
 
   const queueData = priorityQueueMap[categoryData.priority];
 
+  const differential = differentialMap[categoryData.category] || [
+    { name: "General Condition", conf: "LOW" }
+  ];
+
   return {
 
     primaryIssue: symptom,
@@ -266,7 +309,13 @@ function buildTriageSummary(state) {
 
     queueLevel: queueData.queue,
 
-    recommendedAction: queueData.waitTime
+    recommendedAction: queueData.waitTime,
+
+    differential: differential.map((d, i) => ({
+      name: d.name,
+      conf: d.conf,
+      active: i === 0
+    }))
 
   };
 }
